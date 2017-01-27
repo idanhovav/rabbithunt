@@ -7,29 +7,19 @@ import java.util.ArrayList;
  * @version 2
  */
 public class Rabbit extends Player {
-	//used for location values
     private Game game;
-    
     private Entity self;
-    
-    //stores the number of rows in the game. Includes perimeter bushes
+    //Includes perimeter bushes
 	int rows;
-	
-	//stores the number of columns in the game. Includes perimeter bushes
 	int columns;
-	
-	//what turn is it
 	int turn = 0;
-	
-	//on what turns the fox has been spotted
 	ArrayList<Integer> timesSpotted = new ArrayList<Integer>();
-	
-	//the last direction the rabbit went
 	int lastDirection;
-    
-	//options for final decision
-	ArrayList<Integer> options = new ArrayList<Integer>();
-	
+    static int NUM_OPTIONS = Direction.NUM_DIRECTIONS + 1; // +1 for not moving
+    int foxX;
+    int foxY;
+    int foxDist;
+    boolean spotted;
 	
     /**
      * Constructs the rabbit player.
@@ -41,11 +31,12 @@ public class Rabbit extends Player {
         super();
         game = myGame;
         self = mySelf;
-        
-        //as stated, storing rows of game in rows and columns in columns
         rows = game.getRowCount();
     	columns = game.getColumnCount();
-    	
+        foxX = -1;
+        foxY = -1;
+        foxDist = -1;
+        spotted = false;
     }
     
     /**
@@ -54,99 +45,36 @@ public class Rabbit extends Player {
      * @return the direction to go, or <code>null</code> to remain stationary.
      */
     public Direction decide() {
-    	
-    	//location of fox
-    	int foxX = -1;
-    	int foxY = -1;
-    	int foxDist = -1;
-    	
-    	//maximum square nearby
-    	int max = -2;
+    	int maxPref = -2;
     	int maxDirection = -1;
+        spotted = false;
     	
-    	//boolean to skip 2nd if statement if fox is already spotted
-    	boolean notSpotted = true;
-    	
-    	//array that stores values of preferences to each square
-    	int[] pref = new int[9];
-    	
-    	for(int i = 0; i < pref.length; i++)
-    	{
-    		pref[i] = 1;
+    	//array that stores values of preferences to each option of movement
+    	int[] pref = createArrayOfOnes(NUM_OPTIONS);
+    	for (int i = 0; i < pref.length - 1; i++) {
+            updateForBushes(pref, i);
+            updateForFox(pref, i);					
     	}
-    	
-    	
-    	//minus 1 for pref because 9 represents not moving
-    	/*
-    	 * This for loop does the following:
-    	 * updates adjacent values as bushes or fox by assigning value -1
-    	 * updates location of fox if it is spotted
-    	 * 
-    	*/ 
-    	for(int i = 0; i < pref.length - 1; i++)
-    	{
-    		//checks all 8 directions
-    		Direction direction = Direction.NORTH.rotate(i);
-    		
-    		//whatever is seen put here
-    		Entity entity = look(direction);
-    		
-    		//if the entity is adjacent, then update as bush
-    		if(self.distanceTo(entity) == 1)
-    		{
-        		if(entity.isBush())
-        		{
-        			pref[i] = -1;
-        		}
-    		}
-    		
-    		if(entity.isFox() && notSpotted)
-    		{		
-    			//make that direction the wurst
-    			pref[i] = -2;
-    			
-    			//Updates fox location
-    			//some tricky shit goin on with X and Y
-    			foxDist = self.distanceTo(entity);
-    			foxX = self.getColumn() + ( foxDist * direction.getDeltaX() );
-    			foxY = self.getRow() + ( foxDist * direction.getDeltaY() );				
-    			notSpotted = false;
-    			timesSpotted.add(turn);
-    		}					
-    	}
-    	
-    	
-    	
     	 //this for loop checks all directions to see if the fox can see them
-    	if(!notSpotted)
-    	{
-        	for(int i = 0; i < pref.length - 1; i++)
-        	{
+    	if (spotted) {
+        	for (int i = 0; i < pref.length - 1; i++) {
         		Direction direction = Direction.NORTH.rotate(i);
-        		
-        		//doesn't change bushes
-        		if(pref[i] != -1)
-        		{
+        		if (pref[i] != -1) { // doesn't change bushes
             		//the location of the adjacent square in that direction.
             		int row = self.getRow() + direction.getDeltaY();
             		int col = self.getColumn() + direction.getDeltaX();
             		
             		//value of 0 denotes that fox can see square, but can still move there 
-            		if( foxCanSeeSquare(row, col, foxY, foxX) )
-            		{
+            		if (foxCanSeeSquare(row, col, foxY, foxX)) {
             			pref[i] = 0;
             		}
         		} 		
         	}
     	}
-    			
-
-    	
     	//gotta add a statement to check the present square since fox could see it.
     	//can't put in for loop b/c not a direction
-    	if(!notSpotted){
-    		if(foxCanSeeSquare(self.getRow(), self.getColumn(), foxY, foxX) )			
-    		{
+    	if (spotted) {
+    		if (foxCanSeeSquare(self.getRow(), self.getColumn(), foxY, foxX)) {
     			pref[8] = 0;
     		}
     	}
@@ -155,35 +83,28 @@ public class Rabbit extends Player {
     	//the first is if there is at least 1 viable direction to take
     	//the second is if there are 0 viable options to take
     	
-    	
-    		//this for loop changes values of viable squares
-    		//based on their distance to the center
-    		
-    	for(int i = 0; i < pref.length - 1; i++)
-    	{
-    		if(pref[i] > 0)
-    		{
+		//this for loop changes values of viable squares
+		//based on their distance to the center	
+    	for (int i = 0; i < pref.length - 1; i++) {
+    		if (pref[i] > 0) {
     			Direction direction = Direction.NORTH.rotate(i);
-    			
     			int row = self.getRow() + direction.getDeltaY();
            		int col = self.getColumn() + direction.getDeltaX();
-           		
-    			pref[i] = 25 - Math.max( Math.abs(row - ((int)rows/2)),
-    					Math.abs(col - ((int) columns/2)) );
+    			pref[i] = 25 - Math.max(Math.abs(row - (rows / 2)),
+    					                Math.abs(col - (columns / 2))
+                               );
     		}
    		}
-    		
     	//this is for null option of staying in same place
-    	if(pref[8] > 0)
-    	{
-        	pref[8] = 25 - Math.max( Math.abs( self.getRow() - ((int)rows/2) ),
-    				Math.abs(self.getColumn() - ((int) columns/2)) );
+    	if (pref[8] > 0) {
+        	pref[8] = 25 - Math.max(Math.abs(self.getRow() - (rows / 2)),
+    				                Math.abs(self.getColumn() - (columns / 2)));
     	}
-    	max = getMaxVal(pref);
+    	maxPref = getMaxVal(pref);
     	maxDirection = getMaxIndex(pref);
     	
     	//make options out of directions that have equal values
-    	options = createArrayListOfOptions(pref, max);
+    	ArrayList<Integer> options = chooseOptions(pref, maxPref);
     	
     	/*
     	 * Make algorithm for choosing from options if more than one
@@ -191,7 +112,7 @@ public class Rabbit extends Player {
     	 */
     	
     	turn++;
-    	if (notSpotted && max >= 5) {
+    	if (!spotted && maxPref >= 5) {
     		return null; // keeps rabbit from moving around in the middle
     	}
     	if (maxDirection == 9) {
@@ -201,6 +122,39 @@ public class Rabbit extends Player {
     	return Direction.NORTH.rotate(maxDirection);
     }
     
+    private int[] createArrayOfOnes(int size) {
+        int[] arr = new int[size];
+        for (int i = 0; i < size; i++) {
+            arr[i] = 1;
+        }
+        return arr;
+    }
+
+    private void updateForBushes(int[] prefs, int index) {
+        Direction direction = Direction.NORTH.rotate(index);
+        Entity entity = look(direction);
+        if (self.distanceTo(entity) == 1) {
+            if (entity.isBush()) {
+                prefs[index] = -1;
+            }
+        }
+    }
+
+    private void updateForFox(int[] prefs, int index) {
+        Direction direction = Direction.NORTH.rotate(index);
+        Entity entity = look(direction);
+        if (entity.isFox() && !spotted) {     
+            prefs[index] = -2; // make that direction the worst.
+
+            //Updates fox location
+            foxDist = self.distanceTo(entity);
+            foxX = self.getColumn() + (foxDist * direction.getDeltaX());
+            foxY = self.getRow() + (foxDist * direction.getDeltaY());             
+            spotted = true;
+            timesSpotted.add(turn);                  
+        }
+    }
+
     /*
      * Returns if the fox can see a certain square.
      * This is dependant on the expected square the fox is on.
@@ -251,7 +205,10 @@ public class Rabbit extends Player {
     	return index;
     }
     
-    private ArrayList<Integer> createArrayListOfOptions(int[] pref, int max) {
+    /*
+     * Returns ArrayList of indices of equal max values.
+     */
+    private ArrayList<Integer> chooseOptions(int[] pref, int max) {
     	ArrayList<Integer> options = new ArrayList<Integer>();
     	for (int index = 0; index < pref.length; index++) {
     		if (pref[index] == max) {
