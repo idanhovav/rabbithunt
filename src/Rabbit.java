@@ -53,7 +53,7 @@ public class Rabbit extends Player {
     int[] pref = createArrayOfOnes(NUM_OPTIONS);
     for (int i = 0; i < pref.length - 1; i++) {
       updateForBushes(pref, i);
-      updateForFox(pref, i);                  
+      updateForFox(pref, i);
     }
      //this for loop checks all directions to see if the fox can see them
     if (spotted) {
@@ -63,12 +63,12 @@ public class Rabbit extends Player {
           //the location of the adjacent square in that direction.
           int row = self.getRow() + direction.getDeltaY();
           int col = self.getColumn() + direction.getDeltaX();
-          
+
           //value of 0 denotes that fox can see square, but can still move there 
           if (foxCanSeeSquare(row, col, foxY, foxX)) {
             pref[i] = 0;
           }
-        }       
+        }
       }
     }
     //gotta add a statement to check the present square since fox could see it.
@@ -78,11 +78,11 @@ public class Rabbit extends Player {
         pref[8] = 0;
       }
     }
-    
+
     //at this point, there are two routes we need to split into
     //the first is if there is at least 1 viable direction to take
     //the second is if there are 0 viable options to take
-    
+
     //this for loop changes values of viable squares
     //based on their distance to the center 
     for (int i = 0; i < pref.length - 1; i++) {
@@ -102,15 +102,15 @@ public class Rabbit extends Player {
     }
     maxPref = getMaxVal(pref);
     maxDirection = getMaxIndex(pref);
-    
+
     //make options out of directions that have equal values
     ArrayList<Integer> options = chooseOptions(pref, maxPref);
-    
+
     /*
      * Make algorithm for choosing from options if more than one
      * if fox spotted, choose one that makes farther away from fox
      */
-    
+
     turn++;
     if (!spotted && maxPref >= 5) {
       return null; // keeps rabbit from moving around in the middle
@@ -121,7 +121,7 @@ public class Rabbit extends Player {
     lastDirection = maxDirection;
     return Direction.NORTH.rotate(maxDirection);
   }
-  
+
   private int[] createArrayOfOnes(int size) {
     int[] arr = new int[size];
     for (int i = 0; i < size; i++) {
@@ -161,7 +161,7 @@ public class Rabbit extends Player {
    * Does not take bushes into account.
    * Checks if square and fox are in line horizontally, vertically, and then diagonally.
    */
-  
+
   private boolean foxCanSeeSquare(int row, int col, int foxY, int foxX) {
     if (row == foxY || col == foxX) {
       return true;
@@ -187,7 +187,7 @@ public class Rabbit extends Player {
     }
     return max;
   }
-  
+
   /*
    * Crashes for arrays of length 0 because of array index out of bounds exception.
    * This should never happen since array being passed in is the directions.
@@ -204,7 +204,7 @@ public class Rabbit extends Player {
     }
     return index;
   }
-  
+
   /*
    * Returns ArrayList of indices of equal max values.
    */
